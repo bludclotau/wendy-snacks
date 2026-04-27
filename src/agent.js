@@ -12,6 +12,7 @@ const { Planner } = require('./planner.js');
 const { LongPlanner } = require('./longPlanner.js');
 const { ExtractionEngine } = require('./extractionEngine.js');
 const { TaskGraph } = require('./taskGraph.js');
+const { SwarmManager } = require('./swarm/swarmManager');
 
 const models = loadModels();
 
@@ -302,6 +303,7 @@ async function runAgent({ url, goal, useBrowser, debug = false, verbose = false 
   const longPlanner = new LongPlanner();
   const extractionEngine = new ExtractionEngine();
   const taskGraph = new TaskGraph();
+  const swarmManager = new SwarmManager();
 
   try {
     if (!page && useBrowser) {
@@ -363,7 +365,21 @@ browser = await chromium.launch({
 
       log('info', 'agent_observation', { url: currentUrl });
 
-      const action = await planStep(goal, observation, previousAction, debug, memory, planner, longPlanner);
+      let lastError = null;
+      swarmManager.updateContext({
+        goal,
+        lastObservation: observation,
+        lastError
+      });
+
+      const swarmProposal = swarmManager.proposeNextAction();
+      let action;
+      if (swarmProposal && swarmProposal.action) {
+        action = swarmProposal.action;
+        log('info', 'swarm_action', { chosenBy: swarmProposal.chosenBy, reason: swarmProposal.reason });
+      } else {
+        action = await planStep(goal, observation, previousAction, debug, memory, planner, longPlanner);
+      }
 
       if (action.selectorIndex !== undefined) {
         const domSummary = JSON.parse(observation.html);
@@ -388,6 +404,62 @@ browser = await chromium.launch({
       }
 
       let result;
+
+      // -------------------------------
+      // BATCH 16 / SWARM META-ACTIONS
+      // -------------------------------
+
+      if (action.action === 'startExtractionTask') {
+        extractionEngine.start(action.schema);
+        continue;
+      }
+
+      if (action.action === 'addExtractionRow') {
+        extractionEngine.add(action.row);
+        continue;
+      }
+
+      if (action.action === 'nextPage') {
+        extractionEngine.nextPage();
+        continue;
+      }
+
+      if (action.action === 'markExtractionDone') {
+        extractionEngine.markDone();
+        continue;
+      }
+
+      if (action.action === 'rewriteGoal') {
+        if (action.newGoal && typeof action.newGoal === 'string') {
+          goal = action.newGoal;
+          planner.createPlan(goal);
+          longPlanner.setStrategy('explore');
+        }
+        continue;
+      }
+
+      if (action.action === 'retryWithNewPlan') {
+        planner.reset && planner.reset();
+        longPlanner.reset && longPlanner.reset();
+        continue;
+      }
+
+      if (action.action === 'finish') {
+        planner.markComplete(subgoal);
+        const extractState = extractionEngine.getState();
+        log('info', 'agent_finish', { result });
+        return {
+          type: 'done',
+          message: action.message || 'Task completed',
+          extraction: extractState,
+          result
+        };
+      }
+
+      // -------------------------------
+      // NORMAL DOM / PLUGIN ACTIONS
+      // -------------------------------
+
       if (['click', 'extract', 'extractAll'].includes(action.action)) {
         if (action.selectorIndex === undefined) {
           throw new Error('SelectorIndex missing for grounded action');
@@ -443,8 +515,10 @@ browser = await chromium.launch({
         const plugin = candidates[0];
         try {
           result = await runPluginAction(plugin, { page, action, debug });
-        } catch (err) {
-          logger.warn('action_failed', { action: action.action, error: err.message });
+} catch (err) {
+            logger.warn('action_failed', { action: action.action, error: err.message });
+            lastError = err;
+            swarmManager.updateContext({ lastError: String(err && err.message || err) });
           if (err.message.includes('Timeout') || err.message.includes('not found')) {
             logger.warn('strategy_switch', { from: longPlanner.getStrategy(), to: 'recover' });
             longPlanner.setStrategy('recover');
@@ -457,54 +531,6 @@ browser = await chromium.launch({
 
       if (action.action === 'extract' || action.action === 'extractAll') {
         planner.markComplete(subgoal);
-      }
-
-      if (action.action === 'startExtractionTask') {
-        extractionEngine.start(action.schema);
-        continue;
-      }
-
-      if (action.action === 'addExtractionRow') {
-        extractionEngine.add(action.row);
-        continue;
-      }
-
-      if (action.action === 'nextPage') {
-        extractionEngine.nextPage();
-        continue;
-      }
-
-      if (action.action === 'markExtractionDone') {
-        extractionEngine.markDone();
-        continue;
-      }
-
-      if (action.action === 'rewriteGoal') {
-        if (action.newGoal && typeof action.newGoal === 'string') {
-          goal = action.newGoal;
-          planner.createPlan(goal);
-          longPlanner.setStrategy('explore');
-        }
-        continue;
-      }
-
-      if (action.action === 'retryWithNewPlan') {
-        planner.reset && planner.reset();
-        longPlanner.reset && longPlanner.reset();
-        continue;
-      }
-
-      if (action.action === 'finish') {
-        planner.markComplete(subgoal);
-        const extractState = extractionEngine.getState();
-        log('info', 'agent_finish', { result });
-        return {
-          type: 'done',
-          message: action.result || 'Task completed',
-          extraction: extractState,
-          result,
-          steps: stepCount
-        };
       }
 
       if (action.action === 'navigate') {
