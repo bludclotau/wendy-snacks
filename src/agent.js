@@ -102,20 +102,6 @@ async function planStep(
     });
   }
 
-  if (extractionEngine) {
-    messages.push({
-      role: 'system',
-      content: `EXTRACT_STATE:${JSON.stringify(extractionEngine.getState()).slice(0, 1000)}`
-    });
-  }
-
-  if (taskGraph) {
-    messages.push({
-      role: 'system',
-      content: `TASK_GRAPH:${JSON.stringify(taskGraph.getState()).slice(0, 1000)}`
-    });
-  }
-
   const selectorHint = `
 When selecting elements:
 - Prefer IDs first (#id)
@@ -466,7 +452,6 @@ browser = await chromium.launch({
       }
 
       if (action.action === 'finish') {
-        planner.markComplete(subgoal);
         const extractState = extractionEngine.getState();
         log('info', 'agent_finish', { result });
         return {
@@ -555,10 +540,6 @@ browser = await chromium.launch({
         }
       } else {
         result = await executeAction(action, page);
-      }
-
-      if (action.action === 'extract' || action.action === 'extractAll') {
-        planner.markComplete(subgoal);
       }
 
       if (action.action === 'navigate') {
