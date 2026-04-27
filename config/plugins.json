@@ -1,0 +1,59 @@
+{
+  "enabled": true,
+  "plugins": [
+    {
+      "name": "dom-extract",
+      "module": "../plugins/domExtract.js",
+      "description": "Extracts structured data from the current DOM using CSS selectors.",
+      "actions": ["extract"]
+    },
+    {
+      "name": "dom-click",
+      "module": "../plugins/domClick.js",
+      "description": "Performs robust click actions on the current page.",
+      "actions": ["click"]
+    },
+    {
+      "name": "scroll",
+      "module": "../plugins/scroll.js",
+      "description": "Scroll the page by a specified number of pixels.",
+      "actions": ["scroll"]
+    },
+    {
+      "name": "waitFor",
+      "module": "../plugins/waitFor.js",
+      "description": "Wait for a selector to appear on the page.",
+      "actions": ["waitFor"]
+    },
+    {
+      "name": "extractAll",
+      "module": "../plugins/extractAll.js",
+      "description": "Extract text content from all matching elements.",
+      "actions": ["extractAll"]
+    },
+    {
+      "name": "renderedHtml",
+      "module": "../plugins/renderedHtml.js",
+      "description": "Get the fully rendered HTML of the page.",
+      "actions": ["renderedHtml"]
+    },
+    {
+      "name": "evaluate",
+      "module": "../plugins/evaluate.js",
+      "description": "Run JavaScript in the page context.",
+      "actions": ["evaluate"]
+    },
+    {
+      "name": "screenshot",
+      "module": "../plugins/screenshot.js",
+      "description": "Capture a screenshot of the current page.",
+      "actions": ["screenshot"]
+    },
+    {
+      "name": "ocr",
+      "module": "../plugins/ocr.js",
+      "description": "Perform OCR on an image to extract text.",
+      "actions": ["ocr"]
+    }
+  ]
+}

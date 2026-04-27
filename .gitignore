@@ -1,0 +1,30 @@
+# Node
+node_modules/
+npm-debug.log
+yarn-debug.log
+yarn-error.log
+
+# Playwright
+/playwright-report/
+/test-results/
+/. playwright/
+/.cache/
+
+# Logs
+logs/
+*.log
+
+# OS junk
+.DS_Store
+Thumbs.db
+
+# OpenCode temp files
+*.patch
+*.rej
+
+# Build artifacts
+dist/
+build/
+
+# Config backups
+config.bak/

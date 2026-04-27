@@ -1,0 +1,6 @@
+{
+  "actionModel": "qwen2.5-coder:1.5b",
+  "reasoningModel": "qwen2.5-coder:7b",
+  "maxRetries": 2,
+  "fallbackEnabled": true
+}

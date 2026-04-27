@@ -1,5 +1,12 @@
 {
   "bin": {
     "wendy": "./src/cli.js"
+  },
+  "dependencies": {
+    "@lightpanda/browser": "^1.2.0",
+    "playwright": "^1.59.1",
+    "tesseract.js": "^7.0.0",
+    "undici": "^8.1.0",
+    "uuid": "^14.0.0"
   }
 }
