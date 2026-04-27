@@ -357,9 +357,11 @@ browser = await chromium.launch({
       const stepStart = Date.now();
       log('info', 'agent_step', { step: stepCount });
 
+      const domSummary = compressDom(currentHtml);
       const observation = {
         url: currentUrl,
-        html: JSON.stringify(compressDom(currentHtml)),
+        html: JSON.stringify(domSummary),
+        domSummary,
         screenshotBase64: screenshotBase64 || undefined
       };
 
@@ -384,12 +386,12 @@ browser = await chromium.launch({
       }
 
       if (action.selectorIndex !== undefined) {
-        const domSummary = JSON.parse(observation.html);
-        const grounded = domSummary[action.selectorIndex];
+        const domSummaryLocal = observation.domSummary || JSON.parse(observation.html || '[]');
+        const grounded = domSummaryLocal[action.selectorIndex];
         if (grounded && grounded.selector) {
           action.selector = grounded.selector;
         } else if (grounded) {
-          action.selector = `${grounded.tag}:nth-of-type(${grounded.index + 1})`;
+          action.selector = `${grounded.t}:nth-of-type(${grounded.i + 1})`;
         }
       }
 
@@ -462,16 +464,14 @@ browser = await chromium.launch({
       // NORMAL DOM / PLUGIN ACTIONS
       // -------------------------------
 
-      if (['click', 'extract', 'extractAll'].includes(action.action)) {
+      if (['click', 'extract'].includes(action.action)) {
         if (action.selectorIndex === undefined) {
           throw new Error('SelectorIndex missing for grounded action');
         }
 
-        const domSummary = Array.isArray(observation)
-          ? observation
-          : observation.domSummary || observation.items || [];
+        const domSummaryLocal = observation.domSummary || observation.items || [];
 
-        const grounded = domSummary[action.selectorIndex];
+        const grounded = domSummaryLocal[action.selectorIndex];
         if (!grounded) {
           const screenshotPlugin = findPluginsForAction(pluginRegistry, 'screenshot')[0];
           const ocrPlugin = findPluginsForAction(pluginRegistry, 'ocr')[0];
@@ -479,7 +479,7 @@ browser = await chromium.launch({
             const shot = await runPluginAction(screenshotPlugin, { page, action: { action: 'screenshot' }, debug });
             const ocr = await runPluginAction(ocrPlugin, { page, action: { action: 'ocr', imageBase64: shot.buffer }, debug });
             const text = ocr.text.toLowerCase();
-            const match = domSummary.find(el => el.x && text.includes(el.x.toLowerCase().slice(0, 20)));
+            const match = domSummaryLocal.find(el => el.x && text.includes(el.x.toLowerCase().slice(0, 20)));
             if (match) {
               action.selectorIndex = match.i;
               grounded = match;
@@ -512,7 +512,16 @@ browser = await chromium.launch({
             continue;
           }
         }
-      } else if (['scroll', 'waitFor', 'extractAll', 'renderedHtml', 'evaluate'].includes(action.action)) {
+      } else if (action.action === 'extractAll') {
+        const candidates = findPluginsForAction(pluginRegistry, 'extractAll');
+        if (candidates.length === 0) {
+          logger.warn('no_plugin_for_action', { action: action.action });
+          result = await executeAction(action, page);
+        } else {
+          const plugin = candidates[0];
+          result = await runPluginAction(plugin, { page, action, debug });
+        }
+      } else if (['scroll', 'waitFor', 'renderedHtml', 'evaluate'].includes(action.action)) {
         const candidates = findPluginsForAction(pluginRegistry, action.action);
         const plugin = candidates[0];
         try {
