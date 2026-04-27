@@ -1,4 +1,9 @@
 {
+  "name": "wendy-snacks",
+  "version": "1.0.0",
+  "engines": {
+    "node": ">=12.0.0"
+  },
   "bin": {
     "wendy": "./src/cli.js"
   },

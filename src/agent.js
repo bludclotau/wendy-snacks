@@ -51,7 +51,17 @@ function compressLongPlanner(lp) {
 
 const log = logger.info;
 
-async function planStep(goal, observation, previousAction, debug = false, memory = null, planner = null, longPlanner = null) {
+async function planStep(
+  goal,
+  observation,
+  previousAction,
+  debug = false,
+  memory = null,
+  planner = null,
+  longPlanner = null,
+  extractionEngine = null,
+  taskGraph = null
+) {
   const messages = [
     {
       role: 'system',
@@ -92,15 +102,19 @@ async function planStep(goal, observation, previousAction, debug = false, memory
     });
   }
 
-  messages.push({
-    role: 'system',
-    content: `EXTRACT_STATE:${JSON.stringify(extractionEngine.getState()).slice(0, 1000)}`
-  });
+  if (extractionEngine) {
+    messages.push({
+      role: 'system',
+      content: `EXTRACT_STATE:${JSON.stringify(extractionEngine.getState()).slice(0, 1000)}`
+    });
+  }
 
-  messages.push({
-    role: 'system',
-    content: `TASK_GRAPH:${JSON.stringify(taskGraph.getState()).slice(0, 1000)}`
-  });
+  if (taskGraph) {
+    messages.push({
+      role: 'system',
+      content: `TASK_GRAPH:${JSON.stringify(taskGraph.getState()).slice(0, 1000)}`
+    });
+  }
 
   const selectorHint = `
 When selecting elements:
@@ -382,7 +396,10 @@ browser = await chromium.launch({
         action = swarmProposal.action;
         log('info', 'swarm_action', { chosenBy: swarmProposal.chosenBy, reason: swarmProposal.reason });
       } else {
-        action = await planStep(goal, observation, previousAction, debug, memory, planner, longPlanner);
+        action = await planStep(
+          goal, observation, previousAction, debug,
+          memory, planner, longPlanner, extractionEngine, taskGraph
+        );
       }
 
       if (action.selectorIndex !== undefined) {

@@ -12,19 +12,25 @@ function log(level, message, data = {}) {
 
 function loadPlugins(pluginsDir) {
   log('info', 'plugin_load_start', { pluginsDir });
+  if (!fs.existsSync(pluginsDir)) return [];
   const files = fs.readdirSync(pluginsDir).filter(f => f.endsWith('.js'));
   const plugins = files.map(f => {
-    const plugin = require(path.join(pluginsDir, f));
-    const name = path.basename(f, '.js');
-    log('info', 'plugin_loaded', { name });
-    if (name === 'reason') {
-      log('info', 'plugin_reason_registered');
+    try {
+      const plugin = require(path.join(pluginsDir, f));
+      const name = path.basename(f, '.js');
+      log('info', 'plugin_loaded', { name });
+      if (name === 'reason') {
+        log('info', 'plugin_reason_registered');
+      }
+      return {
+        name,
+        fn: plugin.run || plugin
+      };
+    } catch (err) {
+      console.error(`Plugin load error: ${err.message}`);
+      return null;
     }
-    return {
-      name,
-      fn: plugin.run || plugin
-    };
-  });
+  }).filter(Boolean);
   return plugins;
 }
 

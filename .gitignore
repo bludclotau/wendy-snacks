@@ -21,6 +21,7 @@ Thumbs.db
 # OpenCode temp files
 *.patch
 *.rej
+.opencode_sanity
 
 # Build artifacts
 dist/

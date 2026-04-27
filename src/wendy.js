@@ -2,9 +2,12 @@ const { fetch } = require('undici');
 const fs = require('fs');
 const path = require('path');
 
-function loadConfig() {
-  const configPath = path.join(__dirname, '..', 'config', 'default.json');
-  return JSON.parse(fs.readFileSync(configPath, 'utf8'));
+let config;
+try {
+  config = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'config', 'default.json'), 'utf8'));
+} catch (err) {
+  console.error(`Failed to load config: ${err.message}`);
+  process.exit(1);
 }
 
 function log(level, message, data = {}) {
@@ -17,7 +20,6 @@ function log(level, message, data = {}) {
 }
 
 async function fetchPage(url) {
-  const config = loadConfig();
   const startTime = Date.now();
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), config.timeoutMs);
@@ -77,4 +79,14 @@ async function fetchPage(url) {
   }
 }
 
-module.exports = { fetchPage };
+async function wendy(url) {
+  try {
+    await fetchPage(url);
+    return true;
+  } catch (err) {
+    console.error(JSON.stringify({ error: err.message }));
+    return false;
+  }
+}
+
+module.exports = { fetchPage, wendy };
