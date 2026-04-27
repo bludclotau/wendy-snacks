@@ -523,6 +523,29 @@ browser = await chromium.launch({
           const plugin = candidates[0];
           result = await runPluginAction(plugin, { page, action, debug });
         }
+
+        if (result && Array.isArray(result.items) && result.items.length > 0) {
+          if (!extractionEngine.schema) {
+            extractionEngine.start({
+              name: "weather_forecast_raw",
+              fields: [{ name: "text", type: "string" }]
+            });
+          }
+
+          for (const text of result.items) {
+            extractionEngine.add({ text });
+          }
+
+          extractionEngine.markDone();
+
+          const extractState = extractionEngine.getState();
+          log('info', 'agent_finish', { rows: extractState.rows.length });
+
+          return {
+            type: "done",
+            result: extractState
+          };
+        }
       } else if (['scroll', 'waitFor', 'renderedHtml', 'evaluate'].includes(action.action)) {
         const candidates = findPluginsForAction(pluginRegistry, action.action);
         const plugin = candidates[0];
