@@ -369,7 +369,9 @@ browser = await chromium.launch({
       swarmManager.updateContext({
         goal,
         lastObservation: observation,
-        lastError
+        lastError,
+        extractionState: extractionEngine.getState(),
+        taskGraphState: taskGraph.getState()
       });
 
       const swarmProposal = swarmManager.proposeNextAction();
