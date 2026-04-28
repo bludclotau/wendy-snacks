@@ -21,7 +21,7 @@ const { detectSemanticTables, detectAllSemanticTables } = require('./semantic/se
 const { extractHeadingsFromDom } = require('./semantic/headingExtractor');
 const { fuseTables } = require('./fusion/tableFusionEngine');
 const { detectTrends, detectAnomalies, computeRollingAverage, computeCorrelation, summarize, compareLatestSnapshots, detectLongTermTrend } = require('./analysis/patternAnalysisEngine');
-const { appendSnapshot, makeSeriesKey, loadSeries } = require('./memory/timeSeriesStore');
+const { appendSnapshot, makeSeriesKey, loadSeries, listSeriesKeys } = require('./memory/timeSeriesStore');
 
 const models = loadModels();
 
@@ -223,6 +223,7 @@ function tryParseAction(text) {
     'fuseTables',
     'fallbackExtractAll',
     'analyzePatterns',
+    'multiDomainCorrelation',
     'finish'
   ];
 
@@ -694,6 +695,22 @@ swarmManager.updateContext({ lastGeneratedPlugin: pluginMeta, lastUsedExtractor:
 
         const schema = rows[0] ? Object.keys(rows[0]).map(k => ({ name: k, type: 'string' })) : [];
         return { type: 'extraction_result', rows, schema, done: true };
+      } else if (action.action === 'multiDomainCorrelation') {
+        const { loadMultipleSeries, alignTimeAxes, computeCrossCorrelation, detectSynchronizedEvents } = require('./analysis/multiDomainCorrelationEngine');
+        const seriesKeys = context.seriesKeys || listSeriesKeys().slice(0, 5);
+        const seriesData = loadMultipleSeries(seriesKeys, { limit: 20 });
+        const aligned = alignTimeAxes(seriesData);
+        const field = 'close' || Object.keys(aligned[0]?.aligned?.[0]?.rows?.[0] || {})[0];
+        const correlation = computeCrossCorrelation(aligned, field);
+        const syncEvents = detectSynchronizedEvents(aligned, field);
+        log('info', 'multi_domain_analysis_completed', { seriesKeys, correlation });
+        return {
+          type: 'multi_domain_analysis_result',
+          correlation,
+          synchronizedEvents: syncEvents,
+          seriesKeys,
+          done: true
+        };
       } else if (['scroll', 'waitFor', 'renderedHtml', 'evaluate'].includes(action.action)) {
         const candidates = findPluginsForAction(pluginRegistry, action.action);
         const plugin = candidates[0];
