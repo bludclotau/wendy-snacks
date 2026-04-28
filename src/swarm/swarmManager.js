@@ -29,6 +29,26 @@ class SwarmManager {
   }
 
   proposeNextAction() {
+    const observation = this.context.lastObservation;
+    if (observation) {
+      if (observation.type === 'extraction_result') {
+        logger.info('temporal_pipeline', { reason: 'Store raw snapshot before analysis', nextAction: 'recordSnapshot' });
+        return { action: { action: 'recordSnapshot', context: {} }, chosenBy: 'pipeline', reason: 'Store raw snapshot before analysis' };
+      }
+      if (observation.type === 'snapshot_recorded') {
+        logger.info('temporal_pipeline', { reason: 'Generate multi-resolution compressed series', nextAction: 'compressSeries' });
+        return { action: { action: 'compressSeries', context: {} }, chosenBy: 'pipeline', reason: 'Generate multi-resolution compressed series' };
+      }
+      if (observation.type === 'series_compressed') {
+        logger.info('temporal_pipeline', { reason: 'Prune raw snapshots and finalize compressed series', nextAction: 'compactSeries' });
+        return { action: { action: 'compactSeries', context: {} }, chosenBy: 'pipeline', reason: 'Prune raw snapshots and finalize compressed series' };
+      }
+      if (observation.type === 'series_compacted') {
+        logger.info('temporal_pipeline', { reason: 'Temporal pipeline complete', nextAction: 'continue' });
+        this.context.lastObservation = null;
+      }
+    }
+
     const proposals = [];
 
     for (const agent of this.agents) {

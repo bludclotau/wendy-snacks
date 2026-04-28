@@ -94,10 +94,35 @@ function getLatestTimestamp(key) {
   return idx.snapshots[0].timestamp;
 }
 
+async function saveRawSnapshot(seriesKey, rows) {
+  const dir = path.join('data', 'time-series', seriesKey, 'raw');
+  ensureDir(dir);
+  const file = path.join(dir, `${Date.now()}.json`);
+  fs.writeFileSync(file, JSON.stringify(rows, null, 2));
+  return file;
+}
+
+async function loadRawPoints(seriesKey) {
+  const dir = path.join('data', 'time-series', seriesKey, 'raw');
+  if (!fs.existsSync(dir)) return [];
+  return fs.readdirSync(dir)
+    .map(f => {
+      try {
+        return JSON.parse(fs.readFileSync(path.join(dir, f), 'utf8'));
+      } catch {
+        return null;
+      }
+    })
+    .filter(Boolean)
+    .flat();
+}
+
 module.exports = {
   appendSnapshot,
   loadSeries,
   listSeriesKeys,
   makeSeriesKey,
-  getLatestTimestamp
+  getLatestTimestamp,
+  saveRawSnapshot,
+  loadRawPoints
 };

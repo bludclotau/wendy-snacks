@@ -21,7 +21,9 @@ const { detectSemanticTables, detectAllSemanticTables } = require('./semantic/se
 const { extractHeadingsFromDom } = require('./semantic/headingExtractor');
 const { fuseTables } = require('./fusion/tableFusionEngine');
 const { detectTrends, detectAnomalies, computeRollingAverage, computeCorrelation, summarize, compareLatestSnapshots, detectLongTermTrend } = require('./analysis/patternAnalysisEngine');
-const { appendSnapshot, makeSeriesKey, loadSeries, listSeriesKeys } = require('./memory/timeSeriesStore');
+const { buildMultiResolutionSeries } = require('./engines/timeSeriesCompression');
+const { compactSeries: doCompactSeries, writeCompressedSeries } = require('./storage/timeSeriesCompaction');
+const { appendSnapshot, makeSeriesKey, loadSeries, listSeriesKeys, saveRawSnapshot, loadRawPoints } = require('./memory/timeSeriesStore');
 
 const models = loadModels();
 
@@ -229,6 +231,9 @@ function tryParseAction(text) {
     'runVotingProtocol',
     'evolvePlugin',
     'temporalForecast',
+    'recordSnapshot',
+    'compressSeries',
+    'compactSeries',
     'finish'
   ];
 
@@ -699,6 +704,8 @@ swarmManager.updateContext({ lastGeneratedPlugin: pluginMeta, lastUsedExtractor:
         }
 
         const schema = rows[0] ? Object.keys(rows[0]).map(k => ({ name: k, type: 'string' })) : [];
+        context.seriesKey = context.seriesKey ||
+          `${context.domain || "unknown"}::${context.semanticTable || "default"}`;
         return { type: 'extraction_result', rows, schema, done: true };
       } else if (action.action === 'multiDomainCorrelation') {
         const { loadMultipleSeries, alignTimeAxes, computeCrossCorrelation, detectSynchronizedEvents } = require('./analysis/multiDomainCorrelationEngine');
@@ -730,6 +737,20 @@ done: true
         const forecast = summarizeForecast(series, field, 5);
         log('info', 'forecast_completed', { seriesKey, field });
         return { type: 'temporal_forecast_result', forecast, done: true };
+      } else if (action.action === 'recordSnapshot') {
+        await saveRawSnapshot(context.seriesKey || domain, result?.rows || []);
+        log('info', 'snapshot_recorded', { seriesKey: context.seriesKey || domain });
+        return { type: 'snapshot_recorded', done: true };
+      } else if (action.action === 'compressSeries') {
+        const points = await loadRawPoints(context.seriesKey || domain);
+        const compressed = buildMultiResolutionSeries({ seriesKey: context.seriesKey || domain, points });
+        await writeCompressedSeries(context.seriesKey || domain, compressed);
+        log('info', 'series_compressed', { seriesKey: context.seriesKey || domain });
+        return { type: 'series_compressed', done: true };
+      } else if (action.action === 'compactSeries') {
+        const result = await doCompactSeries(context.seriesKey || domain, {});
+        log('info', 'series_compacted', result);
+        return { type: 'series_compacted', done: true };
       } else if (['scroll', 'waitFor', 'renderedHtml', 'evaluate'].includes(action.action)) {
         const candidates = findPluginsForAction(pluginRegistry, action.action);
         const plugin = candidates[0];
