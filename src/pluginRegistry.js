@@ -23,20 +23,39 @@ function buildRegistry() {
   const config = loadPluginConfig();
   const registry = new Map();
 
-  if (!config.enabled) {
-    return registry;
+  if (config.enabled) {
+    for (const plugin of config.plugins || []) {
+      try {
+        const mod = require(plugin.module);
+        registry.set(plugin.name, {
+          ...plugin,
+          handler: mod
+        });
+        logger.info('plugin_loaded', { name: plugin.name, module: plugin.module });
+      } catch (err) {
+        logger.error('plugin_load_failed', { name: plugin.name, module: plugin.module, error: err.message });
+      }
+    }
   }
 
-  for (const plugin of config.plugins || []) {
-    try {
-      const mod = require(plugin.module);
-      registry.set(plugin.name, {
-        ...plugin,
-        handler: mod
-      });
-      logger.info('plugin_loaded', { name: plugin.name, module: plugin.module });
-    } catch (err) {
-      logger.error('plugin_load_failed', { name: plugin.name, module: plugin.module, error: err.message });
+  const autoDir = path.join(__dirname, '..', 'plugins', 'auto');
+  if (fs.existsSync(autoDir)) {
+    const autoFiles = fs.readdirSync(autoDir).filter(f => f.endsWith('.js'));
+    for (const f of autoFiles) {
+      try {
+        const mod = require(path.join(autoDir, f));
+        const domain = f.replace('.js', '');
+        registry.set(domain, {
+          name: domain,
+          module: `../plugins/auto/${f}`,
+          description: 'Auto-generated extractor',
+          actions: ['autoExtract'],
+          handler: mod
+        });
+        logger.info('auto_plugin_loaded', { domain });
+      } catch (err) {
+        logger.error('auto_plugin_load_failed', { file: f, error: err.message });
+      }
     }
   }
 

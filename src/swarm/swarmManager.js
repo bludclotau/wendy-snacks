@@ -13,7 +13,8 @@ class SwarmManager {
       extractionState: null,
       taskGraphState: null,
       inferredSchema: null,
-      lastSnapshot: null
+      lastSnapshot: null,
+      lastGeneratedPlugin: null
     };
   }
 

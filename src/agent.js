@@ -14,6 +14,7 @@ const { ExtractionEngine } = require('./extractionEngine.js');
 const { TaskGraph } = require('./taskGraph.js');
 const { SwarmManager } = require('./swarm/swarmManager');
 const { saveSnapshot } = require('./snapshotService');
+const { generatePlugin } = require('./autoPluginGenerator');
 const { inferSchemaFromDom } = require('./schemaInference');
 
 const models = loadModels();
@@ -573,6 +574,12 @@ browser = await chromium.launch({
             log('info', 'snapshot_saved', snapshot);
             swarmManager.updateContext({ lastSnapshot: snapshot });
             logger.warn('extraction_zero_rows', snapshot);
+
+            if (inferredSchema && inferredSchema.fields && inferredSchema.fields.length > 0) {
+              const pluginMeta = generatePlugin({ domain, schema: inferredSchema });
+              log('info', 'plugin_generated', pluginMeta);
+              swarmManager.updateContext({ lastGeneratedPlugin: pluginMeta });
+            }
           } else {
             for (const row of result.rows) {
               extractionEngine.add(row);

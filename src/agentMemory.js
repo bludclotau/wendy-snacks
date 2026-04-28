@@ -6,6 +6,7 @@ class AgentMemory {
     this.lastAction = null;
     this.goalProgress = {};
     this.lastInferredSchema = null;
+    this.lastGeneratedPlugin = null;
   }
 
   addDomSnapshot(snapshot) {
