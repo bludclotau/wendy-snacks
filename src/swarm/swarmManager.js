@@ -11,7 +11,9 @@ class SwarmManager {
       lastObservation: null,
       lastError: null,
       extractionState: null,
-      taskGraphState: null
+      taskGraphState: null,
+      inferredSchema: null,
+      lastSnapshot: null
     };
   }
 

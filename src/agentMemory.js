@@ -5,6 +5,7 @@ class AgentMemory {
     this.visitedUrls = new Set();
     this.lastAction = null;
     this.goalProgress = {};
+    this.lastInferredSchema = null;
   }
 
   addDomSnapshot(snapshot) {

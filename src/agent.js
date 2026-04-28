@@ -14,6 +14,7 @@ const { ExtractionEngine } = require('./extractionEngine.js');
 const { TaskGraph } = require('./taskGraph.js');
 const { SwarmManager } = require('./swarm/swarmManager');
 const { saveSnapshot } = require('./snapshotService');
+const { inferSchemaFromDom } = require('./schemaInference');
 
 const models = loadModels();
 
@@ -370,12 +371,15 @@ browser = await chromium.launch({
       log('info', 'agent_observation', { url: currentUrl });
 
       let lastError = null;
+      const domain = new URL(currentUrl).hostname.replace(/^www\./, '');
+      const inferredSchema = inferSchemaFromDom(domSummary, domain);
       swarmManager.updateContext({
         goal,
         lastObservation: observation,
         lastError,
         extractionState: extractionEngine.getState(),
-        taskGraphState: taskGraph.getState()
+        taskGraphState: taskGraph.getState(),
+        inferredSchema
       });
 
       const swarmProposal = swarmManager.proposeNextAction();
