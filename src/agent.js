@@ -228,6 +228,7 @@ function tryParseAction(text) {
     'repairSelectors',
     'runVotingProtocol',
     'evolvePlugin',
+    'temporalForecast',
     'finish'
   ];
 
@@ -713,112 +714,22 @@ swarmManager.updateContext({ lastGeneratedPlugin: pluginMeta, lastUsedExtractor:
           correlation,
           synchronizedEvents: syncEvents,
           seriesKeys,
-          done: true
+done: true
         };
-      } else if (action.action === 'longHorizonTrend') {
-        const { summarizeLongHorizon } = require('./analysis/longHorizonTrendEngine');
+      } else if (action.action === 'temporalForecast') {
+        const { summarizeForecast } = require('./analysis/forecastingEngine');
         const seriesKey = context.seriesKey || listSeriesKeys()[0];
         if (!seriesKey) {
-          return { type: 'long_horizon_trend_result', error: 'no series found', done: true };
+          return { type: 'temporal_forecast_result', error: 'no series found', done: true };
         }
         const series = loadSeries(seriesKey, { limit: 100 });
         if (series.length < 2) {
-          return { type: 'long_horizon_trend_result', error: 'insufficient snapshots', done: true };
+          return { type: 'temporal_forecast_result', error: 'insufficient snapshots', done: true };
         }
         const field = Object.keys(series[0].rows?.[0] || {})[0];
-        const summary = summarizeLongHorizon(series, field);
-        log('info', 'long_horizon_analysis_completed', { seriesKey, field });
-        return {
-          type: 'long_horizon_trend_result',
-          longHorizon: summary,
-          done: true
-        };
-      } else if (action.action === 'repairSelectors') {
-        const { detectBrokenSelectors, proposeRepairs, scoreRepairCandidates, applyRepair } = require('./repair/selectorRepairEngine');
-        const dom = observation.domSummary || JSON.parse(observation.html || '[]');
-        const selectors = context.lastFailedSelectors || [];
-        const { broken, overbroad } = detectBrokenSelectors(dom, selectors);
-
-        if (broken.length === 0 && overbroad.length === 0) {
-          return { type: 'selector_repair_result', repairedSelectors: [], done: true };
-        }
-
-        const repairs = proposeRepairs(dom, broken);
-
-        const scored = repairs.map(r => ({
-          original: r.original,
-          candidates: scoreRepairCandidates(dom, r.candidates)
-        }));
-
-        const repaired = scored.map(r => ({
-          original: r.original,
-          applied: r.candidates[0]?.candidate || r.original
-        }));
-
-        log('info', 'selector_repair_completed', { repairedCount: repaired.length });
-
-        swarmManager.updateContext({ lastRepairedSelectors: repaired.map(r => r.applied) });
-
-        return {
-          type: 'selector_repair_result',
-          repairedSelectors: repaired,
-          done: true
-        };
-      } else if (action.action === 'runVotingProtocol') {
-        const { collectProposals, computeConsensus, selectWinningAction } = require('./swarm/voting/votingEngine');
-
-        const agents = swarmManager.agents || [];
-        const ctx = swarmManager.getContext();
-        const agentOutputs = agents.map(a => {
-          try {
-            return a.decide ? a.decide(ctx) : null;
-          } catch {
-            return null;
-          }
-        }).filter(Boolean);
-
-        const proposals = collectProposals(agentOutputs);
-        const consensus = computeConsensus(proposals, ctx.agentHistory || {});
-        const winner = selectWinningAction(consensus);
-
-        log('info', 'voting_round_completed', { winner: winner?.action, proposalsCount: proposals.length });
-
-        return {
-          type: 'voting_result',
-          winningAction: winner?.action,
-          consensusScore: winner?.consensusScore,
-          done: true
-        };
-      } else if (action.action === 'evolvePlugin') {
-        const { detectDrift, generateMutations, sandboxValidate, scoreMutation, promoteMutation } = require('./plugins/evolution/pluginEvolutionEngine');
-        const dom = observation.domSummary || JSON.parse(observation.html || '[]');
-        const plugin = pluginRegistry.get(domain);
-
-        const { drift, details } = detectDrift(dom, plugin);
-
-        if (!drift) {
-          return { type: 'plugin_evolution_result', promotedPluginPath: null, done: true };
-        }
-
-        const mutations = generateMutations(plugin, details);
-
-        const validated = [];
-        for (const mut of mutations) {
-          const validation = await sandboxValidate(mut);
-          const score = scoreMutation(validation);
-          validated.push({ ...mut, validation, score });
-        }
-
-        validated.sort((a, b) => b.score - a.score);
-        const best = validated[0];
-
-        if (best && best.score > 0.4) {
-          const promoted = promoteMutation(domain, best);
-          log('info', 'plugin_evolution_completed', { path: promoted.promotedPath });
-          return { type: 'plugin_evolution_result', promotedPluginPath: promoted.promotedPath, done: true };
-        }
-
-        return { type: 'plugin_evolution_result', promotedPluginPath: null, done: true };
+        const forecast = summarizeForecast(series, field, 5);
+        log('info', 'forecast_completed', { seriesKey, field });
+        return { type: 'temporal_forecast_result', forecast, done: true };
       } else if (['scroll', 'waitFor', 'renderedHtml', 'evaluate'].includes(action.action)) {
         const candidates = findPluginsForAction(pluginRegistry, action.action);
         const plugin = candidates[0];
