@@ -13,6 +13,7 @@ const { LongPlanner } = require('./longPlanner.js');
 const { ExtractionEngine } = require('./extractionEngine.js');
 const { TaskGraph } = require('./taskGraph.js');
 const { SwarmManager } = require('./swarm/swarmManager');
+const { saveSnapshot } = require('./snapshotService');
 
 const models = loadModels();
 
@@ -207,6 +208,7 @@ function tryParseAction(text) {
     'markExtractionDone',
     'rewriteGoal',
     'retryWithNewPlan',
+    'saveSnapshot',
     'finish'
   ];
 
@@ -451,6 +453,13 @@ browser = await chromium.launch({
         continue;
       }
 
+      if (action.action === 'saveSnapshot') {
+        const snapshot = await saveSnapshot({ html: currentHtml, url: currentUrl });
+        log('info', 'snapshot_saved', snapshot);
+        swarmManager.updateContext({ lastSnapshot: snapshot });
+        continue;
+      }
+
       if (action.action === 'finish') {
         const extractState = extractionEngine.getState();
         log('info', 'agent_finish', { result });
@@ -555,15 +564,22 @@ browser = await chromium.launch({
         }
 
         if (result && Array.isArray(result.rows)) {
-          for (const row of result.rows) {
-            extractionEngine.add(row);
-          }
-          extractionEngine.markDone();
+          if (result.rows.length === 0) {
+            const snapshot = await saveSnapshot({ html: currentHtml, url: currentUrl });
+            log('info', 'snapshot_saved', snapshot);
+            swarmManager.updateContext({ lastSnapshot: snapshot });
+            logger.warn('extraction_zero_rows', snapshot);
+          } else {
+            for (const row of result.rows) {
+              extractionEngine.add(row);
+            }
+            extractionEngine.markDone();
 
-          return {
-            type: 'done',
-            result: extractionEngine.getState()
-          };
+            return {
+              type: 'done',
+              result: extractionEngine.getState()
+            };
+          }
         }
       } else if (['scroll', 'waitFor', 'renderedHtml', 'evaluate'].includes(action.action)) {
         const candidates = findPluginsForAction(pluginRegistry, action.action);
