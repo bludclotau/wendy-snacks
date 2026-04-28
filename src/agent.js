@@ -15,7 +15,7 @@ const { TaskGraph } = require('./taskGraph.js');
 const { SwarmManager } = require('./swarm/swarmManager');
 const { saveSnapshot } = require('./snapshotService');
 const { generatePlugin } = require('./autoPluginGenerator');
-const { loadSiteMemory, saveSchema, saveExtractor, saveSnapshotMetadata } = require('./siteMemory');
+const { loadSiteMemory, saveSchema, saveExtractor, saveSnapshotMetadata, markExtractorInvalid } = require('./siteMemory');
 const { inferSchemaFromDom } = require('./schemaInference');
 
 const models = loadModels();
@@ -572,37 +572,44 @@ browser = await chromium.launch({
         const autoPlugin = sitePlugin || findPluginsForAction(pluginRegistry, 'autoExtract')[0];
 
         if (!autoPlugin) {
-          logger.warn('no_plugin_for_action', { action: action.action, domain });
-        } else {
-          result = await runPluginAction(autoPlugin, { page, action, debug });
-          log('info', 'auto_extract_invoked', { domain, plugin: autoPlugin.name });
-          swarmManager.updateContext({ lastUsedExtractor: domain });
+          logger.warn('auto_extract_plugin_missing', { domain });
+          return { type: 'plugin_missing', domain };
         }
 
+        result = await runPluginAction(autoPlugin, { page, action, debug });
+        log('info', 'auto_extract_invoked', { domain, plugin: autoPlugin.name });
+        swarmManager.updateContext({ lastUsedExtractor: domain });
+
         if (result && Array.isArray(result.rows)) {
+          if (result.rows.length === 0) {
+            logger.warn('auto_extract_zero_rows', { domain });
+            return { type: 'zero_rows', domain };
+          }
           for (const row of result.rows) {
             extractionEngine.add(row);
           }
           extractionEngine.markDone();
-
-          return {
-            type: 'done',
-            result: extractionEngine.getState()
-          };
+          return { type: 'done', result: extractionEngine.getState() };
         }
       } else if (action.action === 'inferAndGenerate') {
         if (inferredSchema && inferredSchema.fields && inferredSchema.fields.length > 0) {
           const pluginMeta = generatePlugin({ domain, schema: inferredSchema });
+          if (pluginMeta.error) {
+            logger.error('auto_plugin_validation_failed', { domain });
+            markExtractorInvalid(domain);
+            return { type: 'plugin_invalid', domain };
+          }
           saveExtractor(domain, pluginMeta.pluginPath);
           saveSchema(domain, inferredSchema);
           log('info', 'infer_and_generate_triggered', { domain, schema: inferredSchema });
           swarmManager.updateContext({ lastGeneratedPlugin: pluginMeta, lastUsedExtractor: null });
-
-          return {
-            type: 'schema_generated',
-            domain
-          };
+          return { type: 'schema_generated', domain };
         }
+      } else if (action.action === 'extractForecast') {
+          log('info', 'infer_and_generate_triggered', { domain, schema: inferredSchema });
+          swarmManager.updateContext({ lastGeneratedPlugin: pluginMeta, lastUsedExtractor: null });
+
+          return { type: 'schema_generated', domain };
       } else if (action.action === 'extractForecast') {
         const plugin = findPluginsForAction(pluginRegistry, 'extractForecast')[0];
         if (!plugin) {

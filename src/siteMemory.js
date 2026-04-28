@@ -103,8 +103,12 @@ function saveExtractor(domain, pluginPath) {
   if (fs.existsSync(pluginPath)) {
     const content = fs.readFileSync(pluginPath, 'utf8');
     fs.writeFileSync(dest, content, 'utf8');
-    saveMetadata(domain, { extractorVersion: Date.now() });
+    saveMetadata(domain, { extractorVersion: Date.now(), extractorValid: true });
   }
+}
+
+function markExtractorInvalid(domain) {
+  saveMetadata(domain, { extractorValid: false, extractorInvalidAt: Date.now() });
 }
 
 function saveSnapshotMetadata(domain, snapshotMeta) {

@@ -1,0 +1,25 @@
+{
+  "name": "auto_inferred_bloomberg.com",
+  "fields": [
+    {
+      "name": "box",
+      "type": "string"
+    },
+    {
+      "name": "<h3",
+      "type": "string"
+    },
+    {
+      "name": "info",
+      "type": "string"
+    },
+    {
+      "name": "<h2",
+      "type": "string"
+    },
+    {
+      "name": "class=\"main__heading\">we've",
+      "type": "string"
+    }
+  ]
+}

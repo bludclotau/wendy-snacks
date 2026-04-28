@@ -9,7 +9,16 @@ function ensureDir(dir) {
   }
 }
 
-function generatePlugin({ domain, schema, selectors = {} }) {
+function validatePluginCode(code) {
+  try {
+    new Function(code);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+async function generatePlugin({ domain, schema, selectors = {} }) {
   ensureDir(AUTO_DIR);
 
   const safeDomain = domain.replace(/[^a-z0-9]/gi, '_');
@@ -37,6 +46,10 @@ ${fieldAssignments || '            _raw: el.innerText.trim()'}
 module.exports = { run };
 `;
 
+  if (!validatePluginCode(code)) {
+    return { error: 'invalid_plugin', domain };
+  }
+
   fs.writeFileSync(pluginPath, code, 'utf8');
 
   return {
@@ -47,5 +60,6 @@ module.exports = { run };
 }
 
 module.exports = {
-  generatePlugin
+  generatePlugin,
+  validatePluginCode
 };

@@ -95,7 +95,12 @@ function findPluginsForAction(registry, actionName) {
   return matches;
 }
 
+function hasPluginForDomain(registry, domain) {
+  return registry.has(domain) || registry.has(`site:${domain}`);
+}
+
 module.exports = {
   buildRegistry,
-  findPluginsForAction
+  findPluginsForAction,
+  hasPluginForDomain
 };
