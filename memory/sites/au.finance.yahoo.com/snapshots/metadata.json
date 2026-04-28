@@ -6,5 +6,45 @@
     "timestamp": 1777353387699,
     "domain": "au.finance.yahoo.com",
     "url": "https://au.finance.yahoo.com/markets/"
+  },
+  {
+    "tmpPath": "/tmp/wendy/5b295d33d77aac7c19b6ec015a89a66bc7cbbce4.html",
+    "appPath": "/home/snerloc/cvcs-tx/wendy-snacks/data/snapshots/au.finance.yahoo.com/1777360903013.html",
+    "hash": "5b295d33d77aac7c19b6ec015a89a66bc7cbbce4",
+    "timestamp": 1777360903013,
+    "domain": "au.finance.yahoo.com",
+    "url": "https://au.finance.yahoo.com/markets/"
+  },
+  {
+    "tmpPath": "/tmp/wendy/d0108b9b8bb82d5a6ebedf06cde8a728365d27d8.html",
+    "appPath": "/home/snerloc/cvcs-tx/wendy-snacks/data/snapshots/au.finance.yahoo.com/1777360966559.html",
+    "hash": "d0108b9b8bb82d5a6ebedf06cde8a728365d27d8",
+    "timestamp": 1777360966559,
+    "domain": "au.finance.yahoo.com",
+    "url": "https://au.finance.yahoo.com/markets/"
+  },
+  {
+    "tmpPath": "/tmp/wendy/8c5c5b2de363d34415ea321354b978cf843d86dd.html",
+    "appPath": "/home/snerloc/cvcs-tx/wendy-snacks/data/snapshots/au.finance.yahoo.com/1777360978502.html",
+    "hash": "8c5c5b2de363d34415ea321354b978cf843d86dd",
+    "timestamp": 1777360978502,
+    "domain": "au.finance.yahoo.com",
+    "url": "https://au.finance.yahoo.com/markets/"
+  },
+  {
+    "tmpPath": "/tmp/wendy/f1b74f0917485e911893cbdcc6a49b7963903eaf.html",
+    "appPath": "/home/snerloc/cvcs-tx/wendy-snacks/data/snapshots/au.finance.yahoo.com/1777361210314.html",
+    "hash": "f1b74f0917485e911893cbdcc6a49b7963903eaf",
+    "timestamp": 1777361210314,
+    "domain": "au.finance.yahoo.com",
+    "url": "https://au.finance.yahoo.com/markets/"
+  },
+  {
+    "tmpPath": "/tmp/wendy/e65b8d3570d1512ae1ef75bc5babcefb3417344a.html",
+    "appPath": "/home/snerloc/cvcs-tx/wendy-snacks/data/snapshots/au.finance.yahoo.com/1777361255933.html",
+    "hash": "e65b8d3570d1512ae1ef75bc5babcefb3417344a",
+    "timestamp": 1777361255933,
+    "domain": "au.finance.yahoo.com",
+    "url": "https://au.finance.yahoo.com/markets/"
   }
 ]

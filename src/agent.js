@@ -221,6 +221,7 @@ function tryParseAction(text) {
     'inferAndGenerate',
     'semanticExtract',
     'fuseTables',
+    'fallbackExtractAll',
     'analyzePatterns',
     'finish'
   ];
@@ -666,6 +667,33 @@ swarmManager.updateContext({ lastGeneratedPlugin: pluginMeta, lastUsedExtractor:
             };
           }
         }
+      } else if (action.action === 'fallbackExtractAll') {
+        const candidates = findPluginsForAction(pluginRegistry, 'extractAll');
+        const selectors = ['table', '[data-test*="table"]', 'section table'];
+        let rows = [];
+
+        for (const sel of selectors) {
+          try {
+            const tempAction = { action: 'extractAll', selector: sel };
+            const plugin = candidates[0];
+            const res = await runPluginAction(plugin, { page, action: tempAction, debug });
+            if (res?.rows?.length > 0) {
+              rows = res.rows;
+              log('info', 'fallback_extract_success', { selector: sel, count: rows.length });
+              break;
+            }
+          } catch (e) {
+            // continue to next selector
+          }
+        }
+
+        if (rows.length === 0) {
+          logger.warn('fallback_extract_zero_rows', {});
+          return { type: 'extraction_result', rows: [], schema: [], done: true };
+        }
+
+        const schema = rows[0] ? Object.keys(rows[0]).map(k => ({ name: k, type: 'string' })) : [];
+        return { type: 'extraction_result', rows, schema, done: true };
       } else if (['scroll', 'waitFor', 'renderedHtml', 'evaluate'].includes(action.action)) {
         const candidates = findPluginsForAction(pluginRegistry, action.action);
         const plugin = candidates[0];

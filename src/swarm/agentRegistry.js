@@ -23,7 +23,7 @@ function makeExtractorAgent() {
     id: 'extractor',
     role: 'Structured extraction using ExtractionEngine',
     decide(ctx) {
-      const { lastObservation, extractionState, goal, siteMemory } = ctx;
+      const { lastObservation, extractionState, goal, siteMemory, lastAction, lastResult, semanticTables } = ctx;
       if (!lastObservation) return null;
 
       if (siteMemory && siteMemory.hasExtractor) {
@@ -31,6 +31,22 @@ function makeExtractorAgent() {
           action: { action: 'autoExtract' },
           confidence: 0.8,
           reason: 'Site-specific extractor available'
+        };
+      }
+
+      if (lastAction?.action === 'extractForecast' && lastResult?.rows?.length === 0) {
+        return {
+          action: { action: 'fallbackExtractAll' },
+          confidence: 0.9,
+          reason: 'extractForecast returned zero rows; forcing table extraction'
+        };
+      }
+
+      if (!semanticTables || !semanticTables.matched || semanticTables.matched.length === 0) {
+        return {
+          action: { action: 'fallbackExtractAll' },
+          confidence: 0.9,
+          reason: 'No semantic match; forcing table extraction'
         };
       }
 
@@ -105,7 +121,15 @@ function makeSchemaInferenceAgent() {
         return {
           action: { action: 'inferAndGenerate' },
           confidence: 0.85,
-          reason: 'Infer schema + generate plugin for this domain'
+          reason: 'Extraction returned zero rows, regenerating'
+        };
+      }
+
+      if (!semanticTables || !semanticTables.matched || semanticTables.matched.length === 0) {
+        return {
+          action: { action: 'fallbackExtractAll' },
+          confidence: 0.8,
+          reason: 'Semantic detection failed; forcing fallback table extraction'
         };
       }
 
@@ -151,8 +175,8 @@ function makeRecoveryAgent() {
     id: 'recovery',
     role: 'Suggest retries or strategy changes on errors',
     decide(ctx) {
-      const { lastError } = ctx;
-      if (!lastError) return null;
+      const { lastError, lastAction } = ctx;
+      if (!lastError && !lastAction) return null;
 
       const msg = String(lastError || '').toLowerCase();
       if (msg.includes('timeout') || msg.includes('not found')) {
@@ -160,6 +184,14 @@ function makeRecoveryAgent() {
           action: { action: 'retryWithNewPlan' },
           confidence: 0.8,
           reason: 'Recent error suggests we should reset plan and try a new strategy'
+        };
+      }
+
+      if (lastAction?.action === 'dead_end_detected') {
+        return {
+          action: { action: 'fallbackExtractAll' },
+          confidence: 1.0,
+          reason: 'Dead end detected; forcing fallback table extraction'
         };
       }
 
