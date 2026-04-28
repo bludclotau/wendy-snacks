@@ -14,7 +14,8 @@ class SwarmManager {
       taskGraphState: null,
       inferredSchema: null,
       lastSnapshot: null,
-      lastGeneratedPlugin: null
+      lastGeneratedPlugin: null,
+      siteMemory: null
     };
   }
 

@@ -59,6 +59,29 @@ function buildRegistry() {
     }
   }
 
+  const siteMemoryBase = path.join(__dirname, '..', 'memory', 'sites');
+  if (fs.existsSync(siteMemoryBase)) {
+    const siteDirs = fs.readdirSync(siteMemoryBase).filter(f => !f.startsWith('.'));
+    for (const siteDomain of siteDirs) {
+      const extractorFile = path.join(siteMemoryBase, siteDomain, 'extractor.js');
+      if (fs.existsSync(extractorFile)) {
+        try {
+          const mod = require(extractorFile);
+          registry.set(`site:${siteDomain}`, {
+            name: siteDomain,
+            module: `../memory/sites/${siteDomain}/extractor.js`,
+            description: 'Site-specific extractor from memory',
+            actions: ['autoExtract'],
+            handler: mod
+          });
+          logger.info('site_extractor_loaded', { domain: siteDomain });
+        } catch (err) {
+          logger.error('site_extractor_load_failed', { domain: siteDomain, error: err.message });
+        }
+      }
+    }
+  }
+
   return registry;
 }
 

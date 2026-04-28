@@ -15,6 +15,7 @@ const { TaskGraph } = require('./taskGraph.js');
 const { SwarmManager } = require('./swarm/swarmManager');
 const { saveSnapshot } = require('./snapshotService');
 const { generatePlugin } = require('./autoPluginGenerator');
+const { loadSiteMemory, saveSchema, saveExtractor, saveSnapshotMetadata } = require('./siteMemory');
 const { inferSchemaFromDom } = require('./schemaInference');
 
 const models = loadModels();
@@ -374,13 +375,15 @@ browser = await chromium.launch({
       let lastError = null;
       const domain = new URL(currentUrl).hostname.replace(/^www\./, '');
       const inferredSchema = inferSchemaFromDom(domSummary, domain);
+      const siteMemory = loadSiteMemory(domain);
       swarmManager.updateContext({
         goal,
         lastObservation: observation,
         lastError,
         extractionState: extractionEngine.getState(),
         taskGraphState: taskGraph.getState(),
-        inferredSchema
+        inferredSchema,
+        siteMemory
       });
 
       const swarmProposal = swarmManager.proposeNextAction();
@@ -460,6 +463,7 @@ browser = await chromium.launch({
 
       if (action.action === 'saveSnapshot') {
         const snapshot = await saveSnapshot({ html: currentHtml, url: currentUrl });
+        saveSnapshotMetadata(domain, snapshot);
         log('info', 'snapshot_saved', snapshot);
         swarmManager.updateContext({ lastSnapshot: snapshot });
         continue;
@@ -571,12 +575,15 @@ browser = await chromium.launch({
         if (result && Array.isArray(result.rows)) {
           if (result.rows.length === 0) {
             const snapshot = await saveSnapshot({ html: currentHtml, url: currentUrl });
+            saveSnapshotMetadata(domain, snapshot);
             log('info', 'snapshot_saved', snapshot);
             swarmManager.updateContext({ lastSnapshot: snapshot });
             logger.warn('extraction_zero_rows', snapshot);
 
             if (inferredSchema && inferredSchema.fields && inferredSchema.fields.length > 0) {
               const pluginMeta = generatePlugin({ domain, schema: inferredSchema });
+              saveExtractor(domain, pluginMeta.pluginPath);
+              saveSchema(domain, inferredSchema);
               log('info', 'plugin_generated', pluginMeta);
               swarmManager.updateContext({ lastGeneratedPlugin: pluginMeta });
             }
