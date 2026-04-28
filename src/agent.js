@@ -17,6 +17,10 @@ const { saveSnapshot } = require('./snapshotService');
 const { generatePlugin } = require('./autoPluginGenerator');
 const { loadSiteMemory, saveSchema, saveExtractor, saveSnapshotMetadata, markExtractorInvalid } = require('./siteMemory');
 const { inferSchemaFromDom } = require('./schemaInference');
+const { detectSemanticTables, detectAllSemanticTables } = require('./semantic/semanticTableDetector');
+const { extractHeadingsFromDom } = require('./semantic/headingExtractor');
+const { fuseTables } = require('./fusion/tableFusionEngine');
+const { detectTrends, detectAnomalies, computeRollingAverage, computeCorrelation, summarize } = require('./analysis/patternAnalysisEngine');
 
 const models = loadModels();
 
@@ -214,6 +218,9 @@ function tryParseAction(text) {
     'saveSnapshot',
     'autoExtract',
     'inferAndGenerate',
+    'semanticExtract',
+    'fuseTables',
+    'analyzePatterns',
     'finish'
   ];
 
@@ -378,6 +385,18 @@ browser = await chromium.launch({
       const domain = new URL(currentUrl).hostname.replace(/^www\./, '');
       const inferredSchema = inferSchemaFromDom(domSummary, domain);
       const siteMemory = loadSiteMemory(domain);
+
+      let semanticMatches = null;
+      if (page && useBrowser) {
+        try {
+          const headings = await extractHeadingsFromDom(page);
+          log('info', 'semantic_headings_extracted', { count: headings.length, domain });
+          semanticMatches = detectAllSemanticTables(currentHtml, headings, ['most active', 'top gainers', 'top losers']);
+        } catch (e) {
+          log('warn', 'semantic_detection_failed', { error: e.message });
+        }
+      }
+
       swarmManager.updateContext({
         goal,
         lastObservation: observation,
@@ -385,7 +404,8 @@ browser = await chromium.launch({
         extractionState: extractionEngine.getState(),
         taskGraphState: taskGraph.getState(),
         inferredSchema,
-        siteMemory
+        siteMemory,
+        semanticTables: semanticMatches
       });
 
       const swarmProposal = swarmManager.proposeNextAction();
@@ -605,12 +625,7 @@ browser = await chromium.launch({
 swarmManager.updateContext({ lastGeneratedPlugin: pluginMeta, lastUsedExtractor: null });
           return { type: 'schema_generated', domain };
         }
-      } else if (action.action === 'extractForecast') {
-          log('info', 'infer_and_generate_triggered', { domain, schema: inferredSchema });
-          swarmManager.updateContext({ lastGeneratedPlugin: pluginMeta, lastUsedExtractor: null });
-
-          return { type: 'schema_generated', domain };
-      } else if (action.action === 'extractForecast') {
+} else if (action.action === 'extractForecast') {
         const plugin = findPluginsForAction(pluginRegistry, 'extractForecast')[0];
         if (!plugin) {
           logger.warn('no_plugin_for_action', { action: action.action });
