@@ -602,7 +602,7 @@ browser = await chromium.launch({
           saveExtractor(domain, pluginMeta.pluginPath);
           saveSchema(domain, inferredSchema);
           log('info', 'infer_and_generate_triggered', { domain, schema: inferredSchema });
-          swarmManager.updateContext({ lastGeneratedPlugin: pluginMeta, lastUsedExtractor: null });
+swarmManager.updateContext({ lastGeneratedPlugin: pluginMeta, lastUsedExtractor: null });
           return { type: 'schema_generated', domain };
         }
       } else if (action.action === 'extractForecast') {
@@ -628,10 +628,15 @@ browser = await chromium.launch({
 
             if (inferredSchema && inferredSchema.fields && inferredSchema.fields.length > 0) {
               const pluginMeta = generatePlugin({ domain, schema: inferredSchema });
-              saveExtractor(domain, pluginMeta.pluginPath);
-              saveSchema(domain, inferredSchema);
-              log('info', 'plugin_generated', pluginMeta);
-              swarmManager.updateContext({ lastGeneratedPlugin: pluginMeta });
+              if (pluginMeta.error) {
+                logger.error('auto_plugin_validation_failed', { domain });
+                markExtractorInvalid(domain);
+              } else {
+                saveExtractor(domain, pluginMeta.pluginPath);
+                saveSchema(domain, inferredSchema);
+                log('info', 'plugin_generated', pluginMeta);
+                swarmManager.updateContext({ lastGeneratedPlugin: pluginMeta });
+              }
             }
           } else {
             for (const row of result.rows) {
