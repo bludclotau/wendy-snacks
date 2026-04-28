@@ -142,10 +142,87 @@ function summarize(rows, schema) {
   return summary;
 }
 
+function extractValues(rows, field) {
+  return rows.map(r => parseFloat(r[field])).filter(v => !isNaN(v));
+}
+
+function compareLatestSnapshots(snapshots, count = 2) {
+  if (snapshots.length < count) return null;
+
+  const latest = snapshots.slice(-count);
+  const deltas = {};
+
+  const latestSchema = latest[latest.length - 1]?.schema;
+  if (!latestSchema?.fields) return null;
+
+  const fields = latestSchema.fields.map(f => f.name);
+
+  for (const field of fields) {
+    const values = extractValues(latest[latest.length - 1].rows, field);
+    const prevValues = extractValues(latest[latest.length - count].rows, field);
+
+    if (values.length > 0 && prevValues.length > 0) {
+      const current = values[values.length - 1];
+      const previous = prevValues[prevValues.length - 1];
+
+      if (previous !== 0) {
+        deltas[field] = {
+          current,
+          previous,
+          change: ((current - previous) / previous * 100).toFixed(2) + '%'
+        };
+      }
+    }
+  }
+
+  return {
+    snapshotCount: latest.length,
+    deltas
+  };
+}
+
+function detectLongTermTrend(snapshots, field) {
+  if (snapshots.length < 3) return null;
+
+  const points = snapshots
+    .map((s, i) => {
+      const vals = extractValues(s.rows, field);
+      return vals.length > 0 ? { t: s.timestamp, y: vals[0] } : null;
+    })
+    .filter(Boolean)
+    .sort((a, b) => a.t - b.t);
+
+  if (points.length < 2) return null;
+
+  let sumX = 0, sumY = 0, sumXY = 0, sumX2 = 0;
+  const n = points.length;
+
+  for (let i = 0; i < n; i++) {
+    const x = i;
+    const y = points[i].y;
+    sumX += x;
+    sumY += y;
+    sumXY += x * y;
+    sumX2 += x * x;
+  }
+
+  const slope = (n * sumXY - sumX * sumY) / (n * sumX2 - sumX * sumX);
+  const direction = slope > 0.01 ? 'increasing' : slope < -0.01 ? 'decreasing' : 'stable';
+
+  return {
+    field,
+    direction,
+    slope: slope.toFixed(4),
+    points: points.length
+  };
+}
+
 module.exports = {
   detectTrends,
   detectAnomalies,
   computeRollingAverage,
   computeCorrelation,
-  summarize
+  summarize,
+  compareLatestSnapshots,
+  detectLongTermTrend
 };

@@ -20,7 +20,8 @@ const { inferSchemaFromDom } = require('./schemaInference');
 const { detectSemanticTables, detectAllSemanticTables } = require('./semantic/semanticTableDetector');
 const { extractHeadingsFromDom } = require('./semantic/headingExtractor');
 const { fuseTables } = require('./fusion/tableFusionEngine');
-const { detectTrends, detectAnomalies, computeRollingAverage, computeCorrelation, summarize } = require('./analysis/patternAnalysisEngine');
+const { detectTrends, detectAnomalies, computeRollingAverage, computeCorrelation, summarize, compareLatestSnapshots, detectLongTermTrend } = require('./analysis/patternAnalysisEngine');
+const { appendSnapshot, makeSeriesKey, loadSeries } = require('./memory/timeSeriesStore');
 
 const models = loadModels();
 
