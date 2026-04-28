@@ -227,6 +227,7 @@ function tryParseAction(text) {
     'longHorizonTrend',
     'repairSelectors',
     'runVotingProtocol',
+    'evolvePlugin',
     'finish'
   ];
 
@@ -788,6 +789,36 @@ swarmManager.updateContext({ lastGeneratedPlugin: pluginMeta, lastUsedExtractor:
           consensusScore: winner?.consensusScore,
           done: true
         };
+      } else if (action.action === 'evolvePlugin') {
+        const { detectDrift, generateMutations, sandboxValidate, scoreMutation, promoteMutation } = require('./plugins/evolution/pluginEvolutionEngine');
+        const dom = observation.domSummary || JSON.parse(observation.html || '[]');
+        const plugin = pluginRegistry.get(domain);
+
+        const { drift, details } = detectDrift(dom, plugin);
+
+        if (!drift) {
+          return { type: 'plugin_evolution_result', promotedPluginPath: null, done: true };
+        }
+
+        const mutations = generateMutations(plugin, details);
+
+        const validated = [];
+        for (const mut of mutations) {
+          const validation = await sandboxValidate(mut);
+          const score = scoreMutation(validation);
+          validated.push({ ...mut, validation, score });
+        }
+
+        validated.sort((a, b) => b.score - a.score);
+        const best = validated[0];
+
+        if (best && best.score > 0.4) {
+          const promoted = promoteMutation(domain, best);
+          log('info', 'plugin_evolution_completed', { path: promoted.promotedPath });
+          return { type: 'plugin_evolution_result', promotedPluginPath: promoted.promotedPath, done: true };
+        }
+
+        return { type: 'plugin_evolution_result', promotedPluginPath: null, done: true };
       } else if (['scroll', 'waitFor', 'renderedHtml', 'evaluate'].includes(action.action)) {
         const candidates = findPluginsForAction(pluginRegistry, action.action);
         const plugin = candidates[0];
