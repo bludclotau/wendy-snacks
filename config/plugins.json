@@ -54,6 +54,12 @@
       "module": "../plugins/ocr.js",
       "description": "Perform OCR on an image to extract text.",
       "actions": ["ocr"]
+    },
+    {
+      "name": "extractForecast",
+      "module": "../plugins/extractForecast.js",
+      "description": "Extract BOM weather forecast data.",
+      "actions": ["extractForecast"]
     }
   ]
 }

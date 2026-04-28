@@ -49,11 +49,10 @@ function makeExtractorAgent() {
       if (extractionState && extractionState.schema && !extractionState.done) {
         return {
           action: {
-            action: 'extractAll',
-            selectorIndex: 0
+            action: 'extractForecast'
           },
-          confidence: 0.6,
-          reason: 'Attempt bulk extraction of forecast rows'
+          confidence: 0.85,
+          reason: 'Extract structured forecast rows'
         };
       }
 

@@ -546,6 +546,25 @@ browser = await chromium.launch({
             result: extractState
           };
         }
+      } else if (action.action === 'extractForecast') {
+        const plugin = findPluginsForAction(pluginRegistry, 'extractForecast')[0];
+        if (!plugin) {
+          logger.warn('no_plugin_for_action', { action: action.action });
+        } else {
+          result = await runPluginAction(plugin, { page, action, debug });
+        }
+
+        if (result && Array.isArray(result.rows)) {
+          for (const row of result.rows) {
+            extractionEngine.add(row);
+          }
+          extractionEngine.markDone();
+
+          return {
+            type: 'done',
+            result: extractionEngine.getState()
+          };
+        }
       } else if (['scroll', 'waitFor', 'renderedHtml', 'evaluate'].includes(action.action)) {
         const candidates = findPluginsForAction(pluginRegistry, action.action);
         const plugin = candidates[0];
