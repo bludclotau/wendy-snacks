@@ -1,6 +1,7 @@
 const path = require('path');
 const fs = require('fs');
 const logger = require('./logger.js');
+const { runInSandbox } = require('./pluginSandbox');
 
 function loadPluginConfig() {
   const configPath = path.join(__dirname, '..', 'config', 'plugins.json');

@@ -72,10 +72,26 @@ function makeSchemaInferenceAgent() {
     id: 'schemaInference',
     role: 'Decide schema/plugin strategy per domain',
     decide(ctx) {
-      const { siteMemory, lastExtractionResult, snapshotMeta, lastObservation } = ctx;
+      const { siteMemory, lastExtractionResult, snapshotMeta, lastObservation, lastError } = ctx;
       const domain = lastObservation?.url ? new URL(lastObservation.url).hostname.replace(/^www\./, '') : null;
 
       if (!domain) return null;
+
+      if (siteMemory && siteMemory.metadata && siteMemory.metadata.extractorValid === false) {
+        return {
+          action: { action: 'inferAndGenerate' },
+          confidence: 0.85,
+          reason: 'Previous extractor invalid, regenerating'
+        };
+      }
+
+      if (lastError && /sanitization|invalid_plugin/i.test(lastError)) {
+        return {
+          action: { action: 'inferAndGenerate' },
+          confidence: 0.85,
+          reason: 'Plugin sanitization failed, retrying inference'
+        };
+      }
 
       if (siteMemory && siteMemory.hasExtractor) {
         return {

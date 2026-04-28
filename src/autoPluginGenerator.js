@@ -1,5 +1,6 @@
 const fs = require('fs');
 const path = require('path');
+const { sanitizeSelector, sanitizeCode } = require('./pluginSandbox');
 
 const AUTO_DIR = path.join(__dirname, '..', 'plugins', 'auto');
 
@@ -26,7 +27,8 @@ async function generatePlugin({ domain, schema, selectors = {} }) {
 
   const fieldAssignments = (schema.fields || [])
     .map(f => {
-      const sel = selectors[f.name] || '.';
+      const rawSel = selectors[f.name] || '.';
+      const sel = sanitizeSelector(rawSel);
       return `            ${f.name}: el.querySelector(${JSON.stringify(sel)})?.innerText.trim() || null`;
     })
     .join(',\n');
@@ -45,6 +47,11 @@ ${fieldAssignments || '            _raw: el.innerText.trim()'}
 
 module.exports = { run };
 `;
+
+  const sanitized = sanitizeCode(code);
+  if (!sanitized.valid) {
+    return { error: 'sanitization_failed', domain };
+  }
 
   if (!validatePluginCode(code)) {
     return { error: 'invalid_plugin', domain };
