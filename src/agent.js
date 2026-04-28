@@ -226,6 +226,7 @@ function tryParseAction(text) {
     'multiDomainCorrelation',
     'longHorizonTrend',
     'repairSelectors',
+    'runVotingProtocol',
     'finish'
   ];
 
@@ -760,6 +761,31 @@ swarmManager.updateContext({ lastGeneratedPlugin: pluginMeta, lastUsedExtractor:
         return {
           type: 'selector_repair_result',
           repairedSelectors: repaired,
+          done: true
+        };
+      } else if (action.action === 'runVotingProtocol') {
+        const { collectProposals, computeConsensus, selectWinningAction } = require('./swarm/voting/votingEngine');
+
+        const agents = swarmManager.agents || [];
+        const ctx = swarmManager.getContext();
+        const agentOutputs = agents.map(a => {
+          try {
+            return a.decide ? a.decide(ctx) : null;
+          } catch {
+            return null;
+          }
+        }).filter(Boolean);
+
+        const proposals = collectProposals(agentOutputs);
+        const consensus = computeConsensus(proposals, ctx.agentHistory || {});
+        const winner = selectWinningAction(consensus);
+
+        log('info', 'voting_round_completed', { winner: winner?.action, proposalsCount: proposals.length });
+
+        return {
+          type: 'voting_result',
+          winningAction: winner?.action,
+          consensusScore: winner?.consensusScore,
           done: true
         };
       } else if (['scroll', 'waitFor', 'renderedHtml', 'evaluate'].includes(action.action)) {
