@@ -224,6 +224,7 @@ function tryParseAction(text) {
     'fallbackExtractAll',
     'analyzePatterns',
     'multiDomainCorrelation',
+    'longHorizonTrend',
     'finish'
   ];
 
@@ -709,6 +710,24 @@ swarmManager.updateContext({ lastGeneratedPlugin: pluginMeta, lastUsedExtractor:
           correlation,
           synchronizedEvents: syncEvents,
           seriesKeys,
+          done: true
+        };
+      } else if (action.action === 'longHorizonTrend') {
+        const { summarizeLongHorizon } = require('./analysis/longHorizonTrendEngine');
+        const seriesKey = context.seriesKey || listSeriesKeys()[0];
+        if (!seriesKey) {
+          return { type: 'long_horizon_trend_result', error: 'no series found', done: true };
+        }
+        const series = loadSeries(seriesKey, { limit: 100 });
+        if (series.length < 2) {
+          return { type: 'long_horizon_trend_result', error: 'insufficient snapshots', done: true };
+        }
+        const field = Object.keys(series[0].rows?.[0] || {})[0];
+        const summary = summarizeLongHorizon(series, field);
+        log('info', 'long_horizon_analysis_completed', { seriesKey, field });
+        return {
+          type: 'long_horizon_trend_result',
+          longHorizon: summary,
           done: true
         };
       } else if (['scroll', 'waitFor', 'renderedHtml', 'evaluate'].includes(action.action)) {
