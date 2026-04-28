@@ -225,6 +225,7 @@ function tryParseAction(text) {
     'analyzePatterns',
     'multiDomainCorrelation',
     'longHorizonTrend',
+    'repairSelectors',
     'finish'
   ];
 
@@ -728,6 +729,37 @@ swarmManager.updateContext({ lastGeneratedPlugin: pluginMeta, lastUsedExtractor:
         return {
           type: 'long_horizon_trend_result',
           longHorizon: summary,
+          done: true
+        };
+      } else if (action.action === 'repairSelectors') {
+        const { detectBrokenSelectors, proposeRepairs, scoreRepairCandidates, applyRepair } = require('./repair/selectorRepairEngine');
+        const dom = observation.domSummary || JSON.parse(observation.html || '[]');
+        const selectors = context.lastFailedSelectors || [];
+        const { broken, overbroad } = detectBrokenSelectors(dom, selectors);
+
+        if (broken.length === 0 && overbroad.length === 0) {
+          return { type: 'selector_repair_result', repairedSelectors: [], done: true };
+        }
+
+        const repairs = proposeRepairs(dom, broken);
+
+        const scored = repairs.map(r => ({
+          original: r.original,
+          candidates: scoreRepairCandidates(dom, r.candidates)
+        }));
+
+        const repaired = scored.map(r => ({
+          original: r.original,
+          applied: r.candidates[0]?.candidate || r.original
+        }));
+
+        log('info', 'selector_repair_completed', { repairedCount: repaired.length });
+
+        swarmManager.updateContext({ lastRepairedSelectors: repaired.map(r => r.applied) });
+
+        return {
+          type: 'selector_repair_result',
+          repairedSelectors: repaired,
           done: true
         };
       } else if (['scroll', 'waitFor', 'renderedHtml', 'evaluate'].includes(action.action)) {
