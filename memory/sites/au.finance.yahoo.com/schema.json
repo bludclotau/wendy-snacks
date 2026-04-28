@@ -1,0 +1,25 @@
+{
+  "name": "auto_inferred_au.finance.yahoo.com",
+  "fields": [
+    {
+      "name": "<a",
+      "type": "string"
+    },
+    {
+      "name": "class=\"item-link",
+      "type": "string"
+    },
+    {
+      "name": "submenu-item",
+      "type": "string"
+    },
+    {
+      "name": "<div",
+      "type": "string"
+    },
+    {
+      "name": "dock-item",
+      "type": "string"
+    }
+  ]
+}

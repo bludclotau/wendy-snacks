@@ -23,8 +23,16 @@ function makeExtractorAgent() {
     id: 'extractor',
     role: 'Structured extraction using ExtractionEngine',
     decide(ctx) {
-      const { lastObservation, extractionState, goal } = ctx;
+      const { lastObservation, extractionState, goal, siteMemory } = ctx;
       if (!lastObservation) return null;
+
+      if (siteMemory && siteMemory.hasExtractor) {
+        return {
+          action: { action: 'autoExtract' },
+          confidence: 0.8,
+          reason: 'Site-specific extractor available'
+        };
+      }
 
       if (!extractionState || !extractionState.schema) {
         return {
@@ -48,15 +56,48 @@ function makeExtractorAgent() {
 
       if (extractionState && extractionState.schema && !extractionState.done) {
         return {
-          action: {
-            action: 'extractForecast'
-          },
+          action: { action: 'extractForecast' },
           confidence: 0.85,
           reason: 'Extract structured forecast rows'
         };
       }
 
       return null;
+    }
+  };
+}
+
+function makeSchemaInferenceAgent() {
+  return {
+    id: 'schemaInference',
+    role: 'Decide schema/plugin strategy per domain',
+    decide(ctx) {
+      const { siteMemory, lastExtractionResult, snapshotMeta, lastObservation } = ctx;
+      const domain = lastObservation?.url ? new URL(lastObservation.url).hostname.replace(/^www\./, '') : null;
+
+      if (!domain) return null;
+
+      if (siteMemory && siteMemory.hasExtractor) {
+        return {
+          action: { action: 'autoExtract' },
+          confidence: 0.9,
+          reason: 'Use site-specific auto-generated extractor'
+        };
+      }
+
+      if (lastExtractionResult && lastExtractionResult.zeroRows && snapshotMeta) {
+        return {
+          action: { action: 'inferAndGenerate' },
+          confidence: 0.85,
+          reason: 'Infer schema + generate plugin for this domain'
+        };
+      }
+
+      return {
+        action: { action: 'extractForecast' },
+        confidence: 0.5,
+        reason: 'Fallback to default extractor'
+      };
     }
   };
 }
@@ -100,9 +141,7 @@ function makeRecoveryAgent() {
       const msg = String(lastError || '').toLowerCase();
       if (msg.includes('timeout') || msg.includes('not found')) {
         return {
-          action: {
-            action: 'retryWithNewPlan'
-          },
+          action: { action: 'retryWithNewPlan' },
           confidence: 0.8,
           reason: 'Recent error suggests we should reset plan and try a new strategy'
         };
@@ -115,6 +154,7 @@ function makeRecoveryAgent() {
 
 function buildAgentRegistry() {
   const agents = [
+    makeSchemaInferenceAgent(),
     makeNavigatorAgent(),
     makeExtractorAgent(),
     makeFinisherAgent(),

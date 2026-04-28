@@ -212,6 +212,8 @@ function tryParseAction(text) {
     'rewriteGoal',
     'retryWithNewPlan',
     'saveSnapshot',
+    'autoExtract',
+    'inferAndGenerate',
     'finish'
   ];
 
@@ -562,6 +564,43 @@ browser = await chromium.launch({
           return {
             type: "done",
             result: extractState
+          };
+        }
+      } else if (action.action === 'autoExtract') {
+        const domainKey = `site:${domain}`;
+        const sitePlugin = findPluginsForAction(pluginRegistry, 'autoExtract').find(p => p.name === domainKey);
+        const autoPlugin = sitePlugin || findPluginsForAction(pluginRegistry, 'autoExtract')[0];
+
+        if (!autoPlugin) {
+          logger.warn('no_plugin_for_action', { action: action.action, domain });
+        } else {
+          result = await runPluginAction(autoPlugin, { page, action, debug });
+          log('info', 'auto_extract_invoked', { domain, plugin: autoPlugin.name });
+          swarmManager.updateContext({ lastUsedExtractor: domain });
+        }
+
+        if (result && Array.isArray(result.rows)) {
+          for (const row of result.rows) {
+            extractionEngine.add(row);
+          }
+          extractionEngine.markDone();
+
+          return {
+            type: 'done',
+            result: extractionEngine.getState()
+          };
+        }
+      } else if (action.action === 'inferAndGenerate') {
+        if (inferredSchema && inferredSchema.fields && inferredSchema.fields.length > 0) {
+          const pluginMeta = generatePlugin({ domain, schema: inferredSchema });
+          saveExtractor(domain, pluginMeta.pluginPath);
+          saveSchema(domain, inferredSchema);
+          log('info', 'infer_and_generate_triggered', { domain, schema: inferredSchema });
+          swarmManager.updateContext({ lastGeneratedPlugin: pluginMeta, lastUsedExtractor: null });
+
+          return {
+            type: 'schema_generated',
+            domain
           };
         }
       } else if (action.action === 'extractForecast') {
