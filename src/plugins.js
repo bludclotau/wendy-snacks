@@ -2,12 +2,17 @@ const fs = require('fs');
 const path = require('path');
 
 function log(level, message, data = {}) {
-  console.log(JSON.stringify({
+  const output = JSON.stringify({
     timestamp: new Date().toISOString(),
     level,
     message,
     ...data
-  }));
+  });
+  if (level === 'error') {
+    console.error(output);
+  } else {
+    console.log(output);
+  }
 }
 
 function loadPlugins(pluginsDir) {
